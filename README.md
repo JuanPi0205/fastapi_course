@@ -24,7 +24,7 @@ Follow these steps to set up the project locally.
 ### Installation Steps
 1. Clone this repository:
    ```sh
-   git clone https://github.com/JuanPi0205/fastapi_movies.git
+   git clone https://github.com/JuanPi0205/fastapi_course.git
    ```
 2. Navigate to the project directory:
    ```sh
