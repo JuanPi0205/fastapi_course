@@ -28,7 +28,7 @@ Follow these steps to set up the project locally.
    ```
 2. Navigate to the project directory:
    ```sh
-   cd fastapi_movies
+   cd fastapi_course
    ```
 3. Create a virtual environment:
    ```sh
