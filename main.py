@@ -1,7 +1,11 @@
+import zoneinfo
+
 from fastapi import FastAPI, Body, Path, Query, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
+from datetime import datetime
+import zoneinfo as tz
 
 app = FastAPI()
 app.title = 'Mi primera FastAPI'
@@ -124,4 +128,24 @@ def delete_movie(id: int) -> dict:
         if item['id'] == id:
             movies.remove(item)
             return JSONResponse(content={"message":"Se ha eliminado correctamente la pelicula seleccionada"}, status_code=status.HTTP_200_OK)
+
+
+country_timezone = {
+    "CO": "America/Bogota",
+    "MX": "America/Mexico_City",
+    "US": "America/New_York",
+    "AR": "America/Argentina/Buenos_Aires",
+    "BR": "America/Sao_Paulo"
+}
+
+@app.get('/horaServer', tags=['date'], response_model=dict)
+def get_date():
+    return JSONResponse(content={"date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}, status_code=status.HTTP_200_OK)
+
+@app.get('/horaRecibir/{iso_code}', tags=['date'], response_model=dict)
+async def time(iso_code: str):
+    iso = iso_code.upper()
+    timezone_str = country_timezone.get(iso)
+    tz = zoneinfo.ZoneInfo(timezone_str)
+    return {"date": datetime.now(tz)}
 
