@@ -6,33 +6,11 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 import zoneinfo as tz
+from models import Movie, Costumer, Transaction, Invoice
 
 app = FastAPI()
 app.title = 'Mi primera FastAPI'
 app.version = '0.0.1'
-
-
-class Movie(BaseModel):
-    id: Optional[int]
-    titulo: str = Field(min_length=8,max_length=15)
-    resumen: str = Field(min_length=10, max_length=400)
-    año: str = Field(min_length=4, max_length=4)
-    rating: float = Field( ge=1,le=10.0)
-    categoria: str = Field(min_length=4, max_length=16)
-
-    model_config = ConfigDict(json_schema_extra={
-        'examples': [
-            {
-                "id": 1,
-                "titulo": "Mi pelicula",
-                "resumen": "Descripcion de la pelicula",
-                "año": "2022",
-                "rating": 9.8,
-                "categoria": "Acción"
-            }
-        ]
-    })
-
 
 movies = [
     {
@@ -148,4 +126,39 @@ async def time(iso_code: str):
     timezone_str = country_timezone.get(iso)
     tz = zoneinfo.ZoneInfo(timezone_str)
     return {"date": datetime.now(tz)}
+
+costumerArray = [{
+    "id": 1,
+    "name": "Juan Perez",
+    "description": "Descripcion del cliente",
+    "email": "test@mail.com",
+    "age": 20
+}]
+@app.post('/createCostumer',  tags=["Costumer"], response_model=dict)
+async def create_costumer(costumer_data: Costumer):
+    if any(m['id'] == costumer_data.id for m in costumerArray):
+        raise HTTPException(status_code=400, detail="Costumer with this ID already exists")
+
+    movie_dict = costumer_data.model_dump()
+    costumerArray.append(movie_dict)
+    return JSONResponse(content={"message": "Costumer created"}, status_code=status.HTTP_201_CREATED)
+
+@app.post('/transactions',  tags=["Costumer"], response_model=dict)
+async def create_transaction(transaction_data: Transaction):
+    if any(m['id'] == transaction_data.id for m in costumerArray):
+        raise HTTPException(status_code=400, detail="Transaction with this ID already exists")
+
+    movie_dict = transaction_data.model_dump()
+    costumerArray.append(movie_dict)
+    return JSONResponse(content={"message": "Transaction created"}, status_code=status.HTTP_201_CREATED)
+
+@app.post('/invoices',  tags=["Costumer"], response_model=dict)
+async def create_invoice(invoice_data: Invoice):
+    if any(m['id'] == invoice_data.id for m in costumerArray):
+        raise HTTPException(status_code=400, detail="Invoice with this ID already exists")
+
+    movie_dict = invoice_data.model_dump()
+    costumerArray.append(movie_dict)
+    return JSONResponse(content={"message": "Invoice created"}, status_code=status.HTTP_201_CREATED)
+
 
