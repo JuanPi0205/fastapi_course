@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 import zoneinfo as tz
-from models import Movie, Costumer, Transaction, Invoice
+from models import Movie, Customer, Transaction, Invoice, CustomerCreate
 
 app = FastAPI()
 app.title = 'Mi primera FastAPI'
@@ -134,14 +134,30 @@ costumerArray = [{
     "email": "test@mail.com",
     "age": 20
 }]
-@app.post('/createCostumer',  tags=["Costumer"], response_model=dict)
-async def create_costumer(costumer_data: Costumer):
-    if any(m['id'] == costumer_data.id for m in costumerArray):
-        raise HTTPException(status_code=400, detail="Costumer with this ID already exists")
 
-    movie_dict = costumer_data.model_dump()
-    costumerArray.append(movie_dict)
-    return JSONResponse(content={"message": "Costumer created"}, status_code=status.HTTP_201_CREATED)
+db_customer: list[Customer] = [] #asumiendo que esta es nuestra base de datos
+@app.post('/createCostumer',  tags=["Costumer"], response_model=Customer) #response_model es para especificar que tipo de respuesta va a devolver en este caso un objeto de tipo Customer para devolver el id
+async def create_costumer(costumer_data: CustomerCreate):
+    #definimos una variable para guardar los datos despues de la validacion
+    customer = Customer.model_validate(costumer_data.model_dump()) #esto nos devuelve todos los datos que esta ingresando el usuario como un diccionario
+    #model_validate es un metodo que creamos en el modelo para validar los datos que vienen del usuario
+    #los datos que vienen del usuario los convertimos en un diccionario con model_dump y luego convierte esos datos a un objeto de tipo Customer
+
+    customer.id = len(db_customer) #contamos cuantos elementos hay en esta lista y le asignamos el valor a id
+    db_customer.append(customer) #agregamos el valor del id a la lista de la base de datos
+    return customer.dict()
+
+@app.get('/costumers',  tags=["Costumer"], response_model=list[Customer])
+async def list_costumers():
+    return db_customer
+
+@app.get('/costumers/{id}',  tags=["Costumer"], response_model=Customer)
+def get_customer(id: int = Path(ge= 1, le=100)) -> db_customer: #recordar que cuando colocamos parentesiss en nuestro metodo del servicio, significa que estamos esperando un parametro o un body como en los casos anteriores
+    #recorremos por medio de un for la supuesta base de datos que acabamos de crear buscando dentro de ella un id que coincida con el de la consulta
+    for item in db_customer:
+        if item.id == id:
+            return JSONResponse(content=item.dict(), status_code=status.HTTP_200_OK) #si encuentra el id que coincida con el de la consulta, devuelve el objeto, para poder verlo como JSON debemos convertir el objeto a un diccionario, por ello el .dict(
+    return JSONResponse(content=[], status_code=status.HTTP_404_NOT_FOUND)
 
 @app.post('/transactions',  tags=["Costumer"], response_model=dict)
 async def create_transaction(transaction_data: Transaction):
