@@ -7,6 +7,7 @@ from typing import Optional
 from datetime import datetime
 import zoneinfo as tz
 from models import Movie, Customer, Transaction, Invoice, CustomerCreate
+from db import SessionDep
 
 app = FastAPI()
 app.title = 'Mi primera FastAPI'
@@ -137,10 +138,10 @@ costumerArray = [{
 
 db_customer: list[Customer] = [] #asumiendo que esta es nuestra base de datos
 @app.post('/createCostumer',  tags=["Costumer"], response_model=Customer) #response_model es para especificar que tipo de respuesta va a devolver en este caso un objeto de tipo Customer para devolver el id
-async def create_costumer(costumer_data: CustomerCreate):
+async def create_costumer(costumer_data: CustomerCreate, session:SessionDep):
     #definimos una variable para guardar los datos despues de la validacion
     customer = Customer.model_validate(costumer_data.model_dump()) #esto nos devuelve todos los datos que esta ingresando el usuario como un diccionario
-    #model_validate es un metodo que creamos en el modelo para validar los datos que vienen del usuario
+    #model_validate es un metodo para validar los datos que vienen del usuario, en este caso los datos que vienen del usuario los convertimos en un diccionario con model_dump y luego convierte esos datos a un objeto de tipo Customer
     #los datos que vienen del usuario los convertimos en un diccionario con model_dump y luego convierte esos datos a un objeto de tipo Customer
 
     customer.id = len(db_customer) #contamos cuantos elementos hay en esta lista y le asignamos el valor a id
