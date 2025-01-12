@@ -6,12 +6,11 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 import zoneinfo as tz
-from models import Movie, Customer, Transaction, Invoice, CustomerCreate
-from db import SessionDep
+from models import Movie, Customer, Transaction, Invoice, CustomerCreate, CustomerUpdate
+from db import SessionDep, lifespan
+from sqlmodel import select
 
-app = FastAPI()
-app.title = 'Mi primera FastAPI'
-app.version = '0.0.1'
+app = FastAPI(title="Campamento FASTAPI", lifespan=lifespan)
 
 movies = [
     {
@@ -143,22 +142,54 @@ async def create_costumer(costumer_data: CustomerCreate, session:SessionDep):
     customer = Customer.model_validate(costumer_data.model_dump()) #esto nos devuelve todos los datos que esta ingresando el usuario como un diccionario
     #model_validate es un metodo para validar los datos que vienen del usuario, en este caso los datos que vienen del usuario los convertimos en un diccionario con model_dump y luego convierte esos datos a un objeto de tipo Customer
     #los datos que vienen del usuario los convertimos en un diccionario con model_dump y luego convierte esos datos a un objeto de tipo Customer
+    session.add(customer)#agregamos el objeto a la sesion
+    session.commit()#guardamos los datos en la base de datos, en el caso de sqlmodel cuando queremos ejecutar acciones, siempre debemos colocar esta variable commit, significa que esta generando la sentencia sql y la ejecuta en nuestro motor de base de datos
+    session.refresh(customer)# en este caso estamos refrescando la variable customer en memoria
+    return customer
 
-    customer.id = len(db_customer) #contamos cuantos elementos hay en esta lista y le asignamos el valor a id
-    db_customer.append(customer) #agregamos el valor del id a la lista de la base de datos
-    return customer.dict()
+@app.get('/costumers',  tags=["Costumer"], response_model=list[Customer]) #response_model es para especificar que tipo de respuesta va a devolver en este caso una lista de objetos de tipo Customer
+async def list_costumers(session:SessionDep):
+    return session.exec(select(Customer)).all() #select requiere un parametro que debe ser una entidad, en este caso le pasamos la entidad Customer y el .all significa que nos traiga todos los registros
 
-@app.get('/costumers',  tags=["Costumer"], response_model=list[Customer])
-async def list_costumers():
-    return db_customer
 
 @app.get('/costumers/{id}',  tags=["Costumer"], response_model=Customer)
-def get_customer(id: int = Path(ge= 1, le=100)) -> db_customer: #recordar que cuando colocamos parentesiss en nuestro metodo del servicio, significa que estamos esperando un parametro o un body como en los casos anteriores
-    #recorremos por medio de un for la supuesta base de datos que acabamos de crear buscando dentro de ella un id que coincida con el de la consulta
-    for item in db_customer:
-        if item.id == id:
-            return JSONResponse(content=item.dict(), status_code=status.HTTP_200_OK) #si encuentra el id que coincida con el de la consulta, devuelve el objeto, para poder verlo como JSON debemos convertir el objeto a un diccionario, por ello el .dict(
-    return JSONResponse(content=[], status_code=status.HTTP_404_NOT_FOUND)
+async def get_customer(id: int, session:SessionDep): #recordar que cuando colocamos parentesiss en nuestro metodo del servicio, significa que estamos esperando un parametro o un body como en los casos anteriores
+    try:
+        customer = session.get(Customer, id) #en este caso estamos buscando un cliente por su id, si no lo encuentra nos va a devolver un error
+        if customer is None: #en este caso estamos validando si el cliente no existe, especificamos que error enviar
+            raise HTTPException(status_code=404, detail="Customer not found")
+    except Exception as e: #en este caso estamos capturando cualquier error que pueda ocurrir
+        raise HTTPException(status_code=500, detail=str(e))
+    return customer
+
+@app.delete('/costumers/{id}',  tags=["Costumer"])
+async def delete_customer(id: int, session:SessionDep): #recordar que cuando colocamos parentesiss en nuestro metodo del servicio, significa que estamos esperando un parametro o un body como en los casos anteriores
+    try:
+        customer = session.get(Customer, id) #en este caso estamos buscando un cliente por su id, si no lo encuentra nos va a devolver un error
+        if customer is None: #en este caso estamos validando si el cliente no existe, especificamos que error enviar
+            raise HTTPException(status_code=404, detail="Customer not found")
+    except Exception as e: #en este caso estamos capturando cualquier error que pueda ocurrir
+        raise HTTPException(status_code=500, detail=str(e))
+
+    session.delete(customer)
+    session.commit() #para hacer un cambio a la base de datos, sea eliminar, insertar, o actualizar debemos confirmarla con commit() solo para el caso de sqlmodel
+    return {"detail:" "Customer deleted"}
+
+@app.patch('/costumers/{id}',  tags=["Costumer"], response_model=Customer)
+async def update_customer(id: int, customer_data: CustomerUpdate ,session:SessionDep): #recordar que cuando colocamos parentesiss en nuestro metodo del servicio, significa que estamos esperando un parametro o un body como en los casos anteriores
+    try:
+        customer = session.get(Customer, id) #en este caso estamos buscando un cliente por su id, si no lo encuentra nos va a devolver un error
+        if customer is None: #en este caso estamos validando si el cliente no existe, especificamos que error enviar
+            raise HTTPException(status_code=404, detail="Customer not found")
+    except Exception as e: #en este caso estamos capturando cualquier error que pueda ocurrir
+        raise HTTPException(status_code=500, detail=str(e))
+
+    customer_data_dict = customer_data.model_dump(exclude_unset=True) #esto nos devuelve todos los datos que esta ingresando el usuario como un diccionario y exclude_unset=True significa que no vamos a actualizar los campos que no se estan enviando
+    customer.sqlmodel_update(customer_data_dict) #en este caso estamos actualizando los datos del cliente
+    session.add(customer) #agregamos el objeto a la sesion
+    session.commit() #para hacer un cambio a la base de datos, sea eliminar, insertar, o actualizar debemos confirmarla con commit() solo para el caso de sqlmodel
+    session.refresh(customer) # en este caso estamos refrescando la variable customer en memoria
+    return customer
 
 @app.post('/transactions',  tags=["Costumer"], response_model=dict)
 async def create_transaction(transaction_data: Transaction):
