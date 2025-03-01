@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import Optional
-from sqlmodel import SQLModel, Field #si un campo no tiene la variable Field entonces no se va a guardar en la base de datos
+from sqlmodel import SQLModel, Relationship,Field #si un campo no tiene la variable Field entonces no se va a guardar en la base de datos
 
 #en esta caso heredamos la clase principal desde sqlmodel para que se cree la tabla en la base de datos
 class CostumerBase(SQLModel): #en este caso creamos un modelo base que se va a usar para crear un nuevo cliente y que se va a guardar en la base de datos
@@ -21,7 +21,19 @@ class CustomerUpdate(CostumerBase):
 #heredamos de CostumerBase para que se cree la tabla en la base de datos
 class Customer(CostumerBase, table=True): #En este caso creamos un modelo aparte que si se va a guardar en la base de datos
     id: int | None = Field(default=None, primary_key=True) #colocamos un valor por defecto como None para cuando creemos el dato y no se lo estamos enviando, automaticamente se le asigne un valor
+    transactions: list["Transaction"] = Relationship(back_populates="customer")
 
+class TransactionBase(SQLModel):
+    ammonut: int
+    description: str
+
+class Transaction(TransactionBase, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    costumer_id: int = Field(foreign_key="customer.id")
+    customer: Customer = Relationship(back_populates="transactions")
+
+class TransactionCreate(TransactionBase):
+    costumer_id: int = Field(foreign_key="customer.id")
 
 class Movie(BaseModel):
     id: Optional[int]
@@ -44,10 +56,6 @@ class Movie(BaseModel):
         ]
     })
 
-class Transaction(BaseModel):
-    id: int
-    ammonut: int | float
-    description: str
 
 class Invoice(BaseModel):
     id: int
